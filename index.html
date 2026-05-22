@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Detector Passport — Motor Oil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f5;--s1:#ffffff;--s2:#f5f7fa;--br:#e2e6eb;
+  --ac:#c84b00;--ac2:#e05500;--acl:#fff3ee;--acb:#fdd0b8;
+  --t1:#1a1f2e;--t2:#4a5568;--t3:#9aa3b0;
+  --ok:#1a7a3a;--okb:#edf7f1;--okbr:#b8e6c8;
+  --er:#c0392b;--erb:#fdf0ef;--erbr:#f5c6c2;
+  --bl:#1a5fa8;--blb:#eef4fd;--blbr:#b8d4f5;
+  --yw:#8a6200;--ywb:#fdf8ed;--ywbr:#f0d88a;
+  --gr:#2d7a4a;--grb:#edf7f1;--grbr:#b8e6c8;
+  --pu:#5a3a8a;--pub:#f3eeff;--pubr:#d4b8f5;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --sh2:0 4px 16px rgba(0,0,0,.10),0 2px 4px rgba(0,0,0,.06);
+  --sh3:0 20px 60px rgba(0,0,0,.15),0 4px 16px rgba(0,0,0,.08);
+  --r:8px;
+}
+body{background:var(--bg);color:var(--t1);font-family:'IBM Plex Sans',sans-serif;min-height:100vh}
+
+/* ── HEADER ── */
+header{
+  background:var(--s1);border-bottom:3px solid var(--ac);
+  padding:0 1.5rem;display:flex;align-items:center;gap:14px;
+  height:58px;position:sticky;top:0;z-index:200;
+  box-shadow:var(--sh);flex-wrap:wrap;
+}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo-mark{width:32px;height:32px;background:var(--ac);border-radius:6px;display:flex;align-items:center;justify-content:center}
+.logo-mark svg{width:18px;height:18px;fill:#fff}
+.logo-text h1{font-size:13px;font-weight:700;color:var(--t1);letter-spacing:.3px;font-family:'IBM Plex Mono',monospace}
+.logo-text p{font-size:10px;color:var(--t3);letter-spacing:.5px;text-transform:uppercase}
+.hbtns{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sync-status{font-size:11px;color:var(--t3);display:flex;align-items:center;gap:5px;margin-right:6px}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--t3)}
+.sync-dot.ok{background:var(--ok)}.sync-dot.er{background:var(--er)}.sync-dot.loading{background:var(--yw);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:.15s;white-space:nowrap;font-family:'IBM Plex Sans',sans-serif;letter-spacing:.2px}
+.bp{background:var(--ac);color:#fff;box-shadow:0 1px 3px rgba(200,75,0,.3)}.bp:hover{background:var(--ac2);transform:translateY(-1px)}
+.bs{background:var(--s1);color:var(--t1);border:1px solid var(--br);box-shadow:var(--sh)}.bs:hover{border-color:var(--ac);color:var(--ac);background:var(--acl)}
+.bg{background:var(--okb);color:var(--ok);border:1px solid var(--okbr)}.bg:hover{background:#d5f0e0}
+.bb{background:var(--blb);color:var(--bl);border:1px solid var(--blbr)}.bb:hover{background:#d5e8f8}
+.by{background:var(--ywb);color:var(--yw);border:1px solid var(--ywbr)}.by:hover{background:#f5edcc}
+.bd{background:transparent;color:var(--er);border:1px solid var(--erbr)}.bd:hover{background:var(--er);color:#fff}
+.btn.xs{padding:4px 9px;font-size:11px}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+
+/* ── LAYOUT ── */
+.wrap{max-width:1120px;margin:0 auto;padding:1.25rem 1rem}
+
+/* ── STATS ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:1.25rem}
+.stat{background:var(--s1);border:1px solid var(--br);border-radius:var(--r);padding:.9rem 1rem;box-shadow:var(--sh);position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ac)}
+.stat.bl::before{background:var(--bl)}.stat.ok::before{background:var(--ok)}.stat.yw::before{background:var(--yw)}
+.sn{font-size:28px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--t1)}
+.sl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.9px;margin-top:2px;font-weight:600}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.si{background:var(--s1);border:1px solid var(--br);color:var(--t1);padding:7px 12px;border-radius:6px;font-size:13px;box-shadow:var(--sh);font-family:'IBM Plex Sans',sans-serif;min-width:220px}
+.si:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px rgba(200,75,0,.1)}
+
+/* ── TABLE ── */
+.tw{background:var(--s1);border:1px solid var(--br);border-radius:var(--r);overflow:hidden;overflow-x:auto;box-shadow:var(--sh)}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:700px}
+th{background:var(--s2);color:var(--t3);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.9px;padding:10px 14px;text-align:left;border-bottom:2px solid var(--br);white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--br);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafbfc}
+.tg{font-weight:700;color:var(--ac);letter-spacing:.5px;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.acts{display:flex;gap:5px;flex-wrap:wrap}
+.nodata{text-align:center;padding:3rem;color:var(--t3);font-size:13px}
+.nodata-icon{font-size:36px;margin-bottom:.75rem;display:block;opacity:.4}
+.loading-row td{text-align:center;padding:2rem;color:var(--t3)}
+
+/* ── OVERLAYS ── */
+.ov{position:fixed;inset:0;background:rgba(15,20,35,.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)}
+.mo{background:var(--s1);border:1px solid var(--br);border-radius:12px;padding:1.75rem;width:100%;max-width:480px;max-height:93vh;overflow-y:auto;box-shadow:var(--sh3)}
+.mo.wide{max-width:560px}
+.mhdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--br)}
+.mhdr h2{font-size:15px;font-weight:700;color:var(--t1);display:flex;align-items:center;gap:8px}
+.xb{background:none;border:none;color:var(--t3);cursor:pointer;font-size:20px;line-height:1;padding:2px 6px;border-radius:4px;transition:.15s}.xb:hover{color:var(--t1);background:var(--s2)}
+.mft{display:flex;justify-content:flex-end;gap:9px;margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--br)}
+
+/* ── FORMS ── */
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:1rem}
+.fg:last-child{margin-bottom:0}
+.fg label{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.8px}
+.fg input,.fg select,.fg textarea{background:var(--s1);border:1px solid var(--br);color:var(--t1);padding:9px 12px;border-radius:6px;font-size:13px;font-family:'IBM Plex Sans',sans-serif;transition:.15s;width:100%}
+.fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px rgba(200,75,0,.1)}
+.fg textarea{resize:vertical;min-height:70px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.full{grid-column:1/-1}
+.fhint{font-size:11px;color:var(--t3);margin-top:3px}
+
+/* ── PIN ── */
+.pin-wrap{text-align:center;padding:.5rem 0 1rem}
+.pin-icon{font-size:40px;margin-bottom:.75rem;display:block}
+.pin-label{font-size:13px;color:var(--t2);margin-bottom:1rem;line-height:1.5}
+.pin-input{font-size:24px;letter-spacing:8px;text-align:center;width:150px;background:var(--s2);border:2px solid var(--br);color:var(--t1);padding:10px;border-radius:8px;font-family:'IBM Plex Mono',monospace;transition:.15s}
+.pin-input:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px rgba(200,75,0,.1)}
+.pin-err{color:var(--er);font-size:12px;font-weight:600;margin-top:.5rem;min-height:18px;text-align:center}
+.pin-btns{display:flex;gap:9px;justify-content:center;margin-top:1rem}
+
+/* ── HISTORY ── */
+.hist-list{margin-top:.5rem}
+.hrow{display:grid;grid-template-columns:90px 1fr auto;gap:8px;padding:.75rem 0;border-bottom:1px solid var(--br);align-items:center;font-size:12px}
+.hrow:last-child{border-bottom:none}
+.hdate{color:var(--t2);font-weight:600;font-family:'IBM Plex Mono',monospace;font-size:11px}
+.htype{display:inline-flex;align-items:center;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700;white-space:nowrap;border:1px solid transparent;max-width:100%;flex-wrap:wrap;gap:4px}
+.htype.cal{background:var(--ywb);color:var(--yw);border-color:var(--ywbr)}
+.htype.filter{background:var(--blb);color:var(--bl);border-color:var(--blbr)}
+.htype.nozzle{background:var(--pub);color:var(--pu);border-color:var(--pubr)}
+.htype.o2{background:var(--grb);color:var(--gr);border-color:var(--grbr)}
+.htype.coh2s{background:var(--okb);color:var(--ok);border-color:var(--okbr)}
+.htype.comb{background:var(--acl);color:var(--ac);border-color:var(--acb)}
+.htype.service{background:var(--ywb);color:var(--yw);border-color:var(--ywbr)}
+.htype.condemned{background:var(--erb);color:var(--er);border-color:var(--erbr)}
+.hnotes{font-size:11px;color:var(--t3);grid-column:2;margin-top:2px;font-style:italic}
+.hadd-btn{width:100%;background:none;border:1.5px dashed var(--br);color:var(--t3);padding:9px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-top:10px;transition:.15s;font-family:'IBM Plex Sans',sans-serif}
+.hadd-btn:hover{border-color:var(--ac);color:var(--ac);background:var(--acl)}
+.hform{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:1rem;margin-top:10px}
+.hempty{text-align:center;padding:1.5rem;color:var(--t3);font-size:12px}
+
+/* ── QR ── */
+.qr-wrap{display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap}
+.qr-canvas{background:#fff;padding:12px;border-radius:8px;border:1px solid var(--br);flex-shrink:0;box-shadow:var(--sh)}
+.qr-info h3{font-size:15px;font-weight:700;margin-bottom:.5rem;font-family:'IBM Plex Mono',monospace;color:var(--ac)}
+.qr-info p{font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:.5rem}
+.qr-note{background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:.6rem .85rem;font-size:11px;color:var(--t3);line-height:1.5}
+.qr-status{font-size:12px;margin-top:.5rem;min-height:18px;font-weight:600}
+
+/* ── TOAST ── */
+.tc{position:fixed;bottom:1.25rem;right:1.25rem;z-index:9999;display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.toast{background:var(--s1);border:1px solid var(--br);padding:10px 15px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:8px;animation:ts .2s ease;box-shadow:var(--sh2);color:var(--t1);font-weight:500;pointer-events:auto}
+.toast.s{border-left:3px solid var(--ok)}.toast.e{border-left:3px solid var(--er)}.toast.i{border-left:3px solid var(--bl)}.toast.w{border-left:3px solid var(--yw)}
+@keyframes ts{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── READ-ONLY (QR scan view) ── */
+.ro-page{background:#f0f2f5;min-height:100vh;padding:1rem;font-family:'IBM Plex Sans',sans-serif}
+.ro-card{background:#fff;border:1px solid #e2e6eb;border-radius:12px;padding:1.5rem;max-width:420px;margin:0 auto;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.ro-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem}
+.ro-badge{background:#c84b00;color:#fff;font-weight:700;font-size:10px;padding:4px 10px;border-radius:4px;letter-spacing:1.5px;font-family:'IBM Plex Mono',monospace}
+.ro-readonly{background:#eef4fd;color:#1a5fa8;border:1px solid #b8d4f5;font-size:9px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:.5px}
+.ro-tag{font-size:22px;font-weight:700;color:#c84b00;font-family:'IBM Plex Mono',monospace;word-break:break-all;margin-bottom:3px;line-height:1.2}
+.ro-model{font-size:13px;color:#4a5568;margin-bottom:1rem;word-break:break-word}
+.ro-fields{display:grid;grid-template-columns:80px 1fr;gap:5px 10px;margin-bottom:1rem;font-size:13px}
+.ro-lbl{color:#9aa3b0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding-top:2px}
+.ro-val{color:#1a1f2e;font-weight:500;word-break:break-word}
+.ro-sep{border:none;border-top:1px solid #e2e6eb;margin:1rem 0}
+.ro-htitle{font-size:10px;font-weight:700;color:#9aa3b0;text-transform:uppercase;letter-spacing:.9px;margin-bottom:.75rem}
+.ro-hrow{display:grid;grid-template-columns:80px 1fr;gap:4px 10px;padding:8px 0;border-bottom:1px solid #f0f2f5;font-size:12px}
+.ro-hrow:last-child{border-bottom:none}
+.ro-hdate{color:#4a5568;font-weight:600;font-family:monospace;font-size:11px;padding-top:3px}
+.ro-hbadge{display:inline-block;padding:3px 9px;border-radius:4px;font-size:11px;font-weight:700;word-break:break-word}
+.ro-hnotes{grid-column:2;font-size:11px;color:#9aa3b0;font-style:italic;margin-top:2px}
+.ro-foot{text-align:center;font-size:10px;color:#9aa3b0;margin-top:1.25rem;padding-top:1rem;border-top:1px solid #e2e6eb;line-height:1.8}
+.ro-loading{display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'IBM Plex Sans',sans-serif}
+.ro-spin{text-align:center;color:#4a5568}
+.ro-spin-icon{font-size:36px;margin-bottom:.75rem;animation:spin 1.5s linear infinite;display:block}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+@media(max-width:600px){
+  header{padding:0 1rem;height:auto;padding-top:.5rem;padding-bottom:.5rem}
+  .hbtns{gap:4px}.btn{padding:6px 10px;font-size:11px}
+  .wrap{padding:1rem .75rem}
+  .g2{grid-template-columns:1fr}
+  .hrow{grid-template-columns:80px 1fr auto}
+}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+    </div>
+    <div class="logo-text">
+      <h1>DETECTOR PASSPORT</h1>
+      <p>Motor Oil Refineries · Instrumentation</p>
+    </div>
+  </div>
+  <div class="hbtns">
+    <div class="sync-status"><div class="sync-dot" id="sync-dot"></div><span id="sync-txt">—</span></div>
+    <button class="btn bs xs" onclick="syncNow()">🔄 Sync</button>
+    <button class="btn bb xs" onclick="importXL()">📥 Import</button>
+    <button class="btn bs xs" onclick="exportXL()">📤 Excel</button>
+    <button class="btn bs xs" onclick="exportPDF()">📄 PDF</button>
+    <button class="btn bs xs" onclick="pinGate('chpin')">🔑 PIN</button>
+    <button class="btn bp" onclick="pinGate('new')">＋ Νέο</button>
+  </div>
+</header>
+
+<!-- ── MAIN ── -->
+<div class="wrap" id="main-view">
+  <div class="stats" id="stats-row">
+    <div class="stat"><div class="sn" id="st-total">—</div><div class="sl">Σύνολο</div></div>
+    <div class="stat bl"><div class="sn" id="st-cal">—</div><div class="sl">Βαθμονομήσεις</div></div>
+    <div class="stat ok"><div class="sn" id="st-bump" style="display:none">—</div><div class="sl" style="display:none">Bump Tests</div></div>
+    <div class="stat yw"><div class="sn" id="st-service">—</div><div class="sl">Αποστολές</div></div>
+  </div>
+  <div class="toolbar">
+    <input class="si" id="search" placeholder="🔍  Αναζήτηση TAG, Κατασκευαστή, Μοντέλο..." oninput="render()">
+    <select class="si" id="filter-type" style="min-width:0" onchange="render()">
+      <option value="">Όλα τα όργανα</option>
+    </select>
+    <span style="font-size:12px;color:var(--t3);margin-left:auto" id="count-label"></span>
+  </div>
+  <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th>TAG</th><th>Κατασκευαστής / Μοντέλο</th><th>Serial</th>
+          <th>Τοποθεσία</th><th>Εγγραφές</th><th>Τελευταία</th><th>Ενέργειες</th>
+        </tr>
+      </thead>
+      <tbody id="tbl"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── TOAST CONTAINER ── -->
+<div class="tc" id="tc"></div>
+
+<!-- ── HIDDEN FILE INPUT ── -->
+<input type="file" id="xl-in" accept=".xlsx,.xls" style="display:none" onchange="doImport(this)">
+
+<!-- ════════════════════════════════════════════════════════════════
+     OVERLAYS
+═══════════════════════════════════════════════════════════════════ -->
+
+<!-- PIN -->
+<div class="ov" id="pin-ov" style="display:none">
+  <div class="mo" style="max-width:340px">
+    <div class="mhdr"><h2>🔐 Επαλήθευση</h2><button class="xb" onclick="hide('pin-ov')">✕</button></div>
+    <div class="pin-wrap">
+      <span class="pin-icon">🔒</span>
+      <p class="pin-label">Εισάγετε τον κωδικό πρόσβασης</p>
+      <input class="pin-input" id="pin-i" type="password" maxlength="10" inputmode="numeric"
+        onkeydown="if(event.key==='Enter') checkPin()">
+      <div class="pin-err" id="pin-err"></div>
+    </div>
+    <div class="pin-btns">
+      <button class="btn bs" onclick="hide('pin-ov')">Ακύρωση</button>
+      <button class="btn bp" onclick="checkPin()">Είσοδος</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE PIN -->
+<div class="ov" id="chpin-ov" style="display:none">
+  <div class="mo" style="max-width:360px">
+    <div class="mhdr"><h2>🔑 Αλλαγή PIN</h2><button class="xb" onclick="hide('chpin-ov')">✕</button></div>
+    <div class="fg"><label>Τρέχον PIN</label><input class="pin-input" id="cp-old" type="password" maxlength="10" inputmode="numeric" style="width:100%"></div>
+    <div class="fg"><label>Νέο PIN</label><input class="pin-input" id="cp-new" type="password" maxlength="10" inputmode="numeric" style="width:100%"></div>
+    <div class="fg"><label>Επιβεβαίωση νέου PIN</label><input class="pin-input" id="cp-conf" type="password" maxlength="10" inputmode="numeric" style="width:100%"></div>
+    <div class="pin-err" id="cp-err"></div>
+    <div class="mft"><button class="btn bs" onclick="hide('chpin-ov')">Ακύρωση</button><button class="btn bp" onclick="doChangePin()">Αλλαγή</button></div>
+  </div>
+</div>
+
+<!-- EDIT INSTRUMENT -->
+<div class="ov" id="edit-ov" style="display:none">
+  <div class="mo wide">
+    <div class="mhdr"><h2 id="edit-title">➕ Νέο Όργανο</h2><button class="xb" onclick="hide('edit-ov')">✕</button></div>
+    <div class="g2">
+      <div class="fg full"><label>TAG *</label><input id="e-tag" placeholder="π.χ. GT-001"><div class="fhint">Μοναδικό αναγνωριστικό — δεν αλλάζει μετά τη δημιουργία</div></div>
+      <div class="fg"><label>Κατασκευαστής</label><input id="e-mfr" placeholder="π.χ. MSA Safety"></div>
+      <div class="fg"><label>Μοντέλο</label><input id="e-model" placeholder="π.χ. ALTAIR 5X"></div>
+      <div class="fg"><label>Serial Number</label><input id="e-serial" placeholder="π.χ. SN-123456"></div>
+      <div class="fg"><label>Τοποθεσία</label><input id="e-loc" placeholder="π.χ. Μονάδα AVIN"></div>
+    </div>
+    <div class="mft">
+      <button class="btn bs" onclick="hide('edit-ov')">Ακύρωση</button>
+      <button class="btn bp" id="edit-save-btn" onclick="saveInstrument()">💾 Αποθήκευση</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE -->
+<div class="ov" id="del-ov" style="display:none">
+  <div class="mo" style="max-width:380px">
+    <div class="mhdr"><h2>🗑️ Διαγραφή</h2><button class="xb" onclick="hide('del-ov')">✕</button></div>
+    <p style="font-size:13px;color:var(--t2);line-height:1.6">Θέλετε να διαγράψετε το όργανο <strong id="del-tag-label"></strong> και όλο το ιστορικό του; Η ενέργεια δεν αναιρείται.</p>
+    <div class="mft"><button class="btn bs" onclick="hide('del-ov')">Ακύρωση</button><button class="btn bd" onclick="doDelete()">🗑️ Διαγραφή</button></div>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="ov" id="hist-ov" style="display:none">
+  <div class="mo wide">
+    <div class="mhdr">
+      <h2>📋 Ιστορικό — <span id="hist-tag-label" style="color:var(--ac);font-family:'IBM Plex Mono',monospace"></span></h2>
+      <button class="xb" onclick="hide('hist-ov')">✕</button>
+    </div>
+    <div id="hist-list" class="hist-list"></div>
+    <button class="hadd-btn" onclick="toggleHForm()">＋ Προσθήκη εγγραφής</button>
+    <div class="hform" id="hform" style="display:none">
+      <div class="g2">
+        <div class="fg"><label>Ημερομηνία *</label><input type="date" id="h-date"></div>
+        <div class="fg"><label>Τύπος *</label>
+          <select id="h-type">
+            <option value="cal">Βαθμονόμηση</option>
+            <option value="filter">Αλλαγή φίλτρων</option>
+            <option value="nozzle">Αλλαγή ακροφύσιου</option>
+            <option value="o2">Αλλαγή O₂</option>
+            <option value="coh2s">Αλλαγή CO/H₂S</option>
+            <option value="comb">Αλλαγή Comb</option>
+            <option value="service">Αποστολή στην αντιπροσωπεία</option>
+            <option value="condemned">Δεν επισκευάζεται</option>
+          </select>
+        </div>
+        <div class="fg"><label>Τεχνικός</label><input id="h-tech" placeholder="Όνομα τεχνικού"></div>
+        <div class="fg full" id="h-notes-wrap" style="display:none">
+          <label>Λόγος αποστολής *</label>
+          <textarea id="h-notes" placeholder="Περιγράψτε τον λόγο αποστολής..."></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:.75rem">
+        <button class="btn bs xs" onclick="toggleHForm()">Ακύρωση</button>
+        <button class="btn bp xs" onclick="saveHistory()">💾 Αποθήκευση</button>
+      </div>
+    </div>
+    <div class="mft"><button class="btn bs" onclick="hide('hist-ov')">Κλείσιμο</button></div>
+  </div>
+</div>
+
+<!-- QR -->
+<div class="ov" id="qr-ov" style="display:none">
+  <div class="mo">
+    <div class="mhdr"><h2 id="qr-title">QR Code</h2><button class="xb" onclick="hide('qr-ov')">✕</button></div>
+    <div class="qr-wrap">
+      <div class="qr-canvas" id="qr-out"></div>
+      <div class="qr-info">
+        <h3 id="qr-tag-label"></h3>
+        <p>Σαρώστε με οποιοδήποτε κινητό. Ανοίγει πλήρη σελίδα με στοιχεία & ιστορικό.</p>
+        <div class="qr-note">🔗 Μόνιμο QR — δεν αλλάζει ποτέ.<br>Τυπώστε και κολλήστε στο όργανο.</div>
+        <div class="qr-status" id="qr-status"></div>
+      </div>
+    </div>
+    <div class="mft">
+      <button class="btn bs" onclick="dlQR()">⬇ PNG</button>
+      <button class="btn bb" onclick="previewQR()">🔗 Προβολή</button>
+      <button class="btn bp" onclick="hide('qr-ov')">Κλείσιμο</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════════════
+const API      = 'https://script.google.com/macros/s/AKfycbwHxpQRHOPDV2fRgM1AsURvlE2ltt_ZhMgVYa64sX5LzooO9AAJ3z_TEmntZs7uGYBqGA/exec';
+const NETLIFY  = 'https://analyserto13-ai.github.io/detector-passport';
+const PIN_KEY  = 'dp_pin_v1';
+const SK_INST  = 'dp_inst_v1';
+const SK_HIST  = 'dp_hist_v1';
+
+function getPin(){ return localStorage.getItem(PIN_KEY) || '6720'; }
+function setPin(p){ localStorage.setItem(PIN_KEY, p); }
+
+// ════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════
+let instruments = [];
+let history     = [];
+let pinCb       = null;
+let editTag     = null;   // null = new, string = editing existing
+let histTag     = null;
+let qrTag       = null;
+let delTag      = null;
+let hFormOpen   = false;
+let syncing     = false;
+
+const TYPES = {
+  cal:      { label:'Βαθμονόμηση',              cls:'cal' },
+  filter:   { label:'Αλλαγή φίλτρων',           cls:'filter' },
+  nozzle:   { label:'Αλλαγή ακροφύσιου',        cls:'nozzle' },
+  o2:       { label:'Αλλαγή O₂',               cls:'o2' },
+  coh2s:    { label:'Αλλαγή CO/H₂S',           cls:'coh2s' },
+  comb:     { label:'Αλλαγή Comb',              cls:'comb' },
+  service:  { label:'Αποστολή αντιπροσωπεία',   cls:'service' },
+  condemned:{ label:'Δεν επισκευάζεται',         cls:'condemned' }
+};
+
+// ════════════════════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════════════════════
+function $(id){ return document.getElementById(id); }
+function show(id){ $(id).style.display='flex'; }
+function hide(id){ $(id).style.display='none'; }
+function fmt(d){ if(!d) return '—'; var p=d.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:d; }
+function today(){ return new Date().toISOString().slice(0,10); }
+
+function toast(msg, type, dur){
+  var t=document.createElement('div');
+  t.className='toast '+(type||'s');
+  t.textContent=msg;
+  $('tc').appendChild(t);
+  setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(function(){ t.remove(); },300); }, dur||3000);
+}
+
+function setSyncStatus(state, msg){
+  var dot=$('sync-dot'), txt=$('sync-txt');
+  dot.className='sync-dot '+state;
+  txt.textContent=msg;
+}
+
+// ════════════════════════════════════════════════════════════════
+// LOCAL STORAGE
+// ════════════════════════════════════════════════════════════════
+function saveLocal(){
+  localStorage.setItem(SK_INST, JSON.stringify(instruments));
+  localStorage.setItem(SK_HIST, JSON.stringify(history));
+}
+function loadLocal(){
+  try{ instruments = JSON.parse(localStorage.getItem(SK_INST)||'[]'); }catch(e){ instruments=[]; }
+  try{ history     = JSON.parse(localStorage.getItem(SK_HIST)||'[]'); }catch(e){ history=[]; }
+}
+
+// ════════════════════════════════════════════════════════════════
+// API — GOOGLE APPS SCRIPT
+// ════════════════════════════════════════════════════════════════
+async function apiGet(params){
+  var url = API + '?' + new URLSearchParams(params).toString();
+  var r   = await fetch(url);
+  var j   = await r.json();
+  if(!j.ok) throw new Error(j.error||'API error');
+  return j.data;
+}
+
+async function apiPost(body){
+  var r = await fetch(API, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  var j = await r.json();
+  if(!j.ok) throw new Error(j.error||'API error');
+  return j.data;
+}
+
+// ════════════════════════════════════════════════════════════════
+// SYNC
+// ════════════════════════════════════════════════════════════════
+async function syncNow(){
+  if(syncing) return;
+  syncing = true;
+  setSyncStatus('loading','Σύνδεση...');
+  try {
+    var data = await apiGet({ action:'getAll' });
+    instruments = data.instruments || [];
+    history     = data.history     || [];
+    saveLocal();
+    render();
+    setSyncStatus('ok','Συγχρονισμένο');
+    toast('✅ Δεδομένα ενημερώθηκαν','s');
+  } catch(e){
+    setSyncStatus('er','Offline');
+    toast('⚠️ Χωρίς σύνδεση — εμφάνιση τοπικών δεδομένων','w');
+  }
+  syncing = false;
+}
+
+// ════════════════════════════════════════════════════════════════
+// RENDER TABLE
+// ════════════════════════════════════════════════════════════════
+function render(){
+  var q    = ($('search').value||'').toLowerCase();
+  var filt = $('filter-type').value;
+
+  var rows = instruments.filter(function(i){
+    var match = !q || i.tag.toLowerCase().includes(q) ||
+      (i.mfr||'').toLowerCase().includes(q) ||
+      (i.model||'').toLowerCase().includes(q) ||
+      (i.loc||'').toLowerCase().includes(q);
+    if(!match) return false;
+    if(filt){
+      var h = history.filter(function(h){ return h.tag===i.tag && h.type===filt; });
+      if(!h.length) return false;
+    }
+    return true;
+  });
+
+  $('count-label').textContent = rows.length + ' από ' + instruments.length + ' όργανα';
+
+  // Stats
+  $('st-total').textContent = instruments.length;
+  $('st-cal').textContent   = history.filter(function(h){ return h.type==='cal'; }).length;
+  $('st-service').textContent = history.filter(function(h){ return h.type==='service'; }).length;
+
+  var tb = $('tbl');
+  if(!rows.length){
+    tb.innerHTML = '<tr><td colspan="7" class="nodata"><span class="nodata-icon">📭</span>'+(instruments.length?'Δεν βρέθηκαν αποτελέσματα':'Δεν υπάρχουν όργανα — προσθέστε το πρώτο!')+'</td></tr>';
+    return;
+  }
+
+  tb.innerHTML = rows.map(function(i){
+    var iHist = history.filter(function(h){ return h.tag===i.tag; })
+      .slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+    var last = iHist.length ? iHist[0] : null;
+    var lastLabel = last ? '<span class="htype '+(TYPES[last.type]||{cls:''}).cls+'" style="font-size:10px">'+
+      (TYPES[last.type]||{label:last.type}).label+'</span><br><small style="color:var(--t3)">'+fmt(last.date)+'</small>' : '<span style="color:var(--t3)">—</span>';
+    var model = [i.mfr, i.model].filter(Boolean).join(' · ') || '<span style="color:var(--t3)">—</span>';
+    return '<tr>' +
+      '<td class="tg">'+i.tag+'</td>' +
+      '<td style="color:var(--t2)">'+model+'</td>' +
+      '<td style="color:var(--t3);font-family:\'IBM Plex Mono\',monospace;font-size:12px">'+(i.serial||'—')+'</td>' +
+      '<td style="color:var(--t2);font-size:12px">'+(i.loc||'—')+'</td>' +
+      '<td style="text-align:center"><span style="background:var(--blb);color:var(--bl);padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700">'+iHist.length+'</span></td>' +
+      '<td>'+lastLabel+'</td>' +
+      '<td><div class="acts">' +
+        '<button class="btn bs xs" onclick="openHist(\''+i.tag+'\')">📋</button>' +
+        '<button class="btn bs xs" onclick="openQR(\''+i.tag+'\')">QR</button>' +
+        '<button class="btn bs xs" onclick="pinGate(\'edit\',\''+i.tag+'\')">✏️</button>' +
+        '<button class="btn bd xs" onclick="pinGate(\'del\',\''+i.tag+'\')">🗑</button>' +
+      '</div></td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+// PIN
+// ════════════════════════════════════════════════════════════════
+function pinGate(action, payload){
+  pinCb = { action:action, payload:payload };
+  $('pin-i').value=''; $('pin-err').textContent='';
+  show('pin-ov');
+  setTimeout(function(){ $('pin-i').focus(); }, 80);
+}
+
+function requirePin(cb){
+  pinCb = { action:'__cb__', payload:cb };
+  $('pin-i').value=''; $('pin-err').textContent='';
+  show('pin-ov');
+  setTimeout(function(){ $('pin-i').focus(); }, 80);
+}
+
+function checkPin(){
+  if($('pin-i').value === getPin()){
+    hide('pin-ov');
+    runPinCb(pinCb);
+  } else {
+    $('pin-err').textContent='❌ Λάθος κωδικός';
+    $('pin-i').value='';
+    $('pin-i').focus();
+  }
+}
+
+function runPinCb(cb){
+  if(!cb) return;
+  if(cb.action==='__cb__' && typeof cb.payload==='function'){ cb.payload(); return; }
+  if(cb.action==='new')    openEdit(null);
+  if(cb.action==='edit')   openEdit(cb.payload);
+  if(cb.action==='del')    openDel(cb.payload);
+  if(cb.action==='chpin')  show('chpin-ov');
+}
+
+function doChangePin(){
+  var old=$('cp-old').value, nw=$('cp-new').value, conf=$('cp-conf').value;
+  if(old !== getPin()){ $('cp-err').textContent='❌ Λάθος τρέχον PIN'; return; }
+  if(nw.length < 4){ $('cp-err').textContent='❌ Νέο PIN τουλάχιστον 4 ψηφία'; return; }
+  if(nw !== conf){ $('cp-err').textContent='❌ Τα PIN δεν ταιριάζουν'; return; }
+  setPin(nw);
+  hide('chpin-ov');
+  toast('✅ PIN άλλαξε επιτυχώς','s');
+}
+
+// ════════════════════════════════════════════════════════════════
+// EDIT INSTRUMENT
+// ════════════════════════════════════════════════════════════════
+function openEdit(tag){
+  editTag = tag;
+  var i = tag ? instruments.find(function(x){ return x.tag===tag; }) : null;
+  $('edit-title').textContent = tag ? '✏️ Επεξεργασία — '+tag : '➕ Νέο Όργανο';
+  $('e-tag').value    = i ? i.tag    : '';
+  $('e-mfr').value    = i ? i.mfr    : '';
+  $('e-model').value  = i ? i.model  : '';
+  $('e-serial').value = i ? i.serial : '';
+  $('e-loc').value    = i ? i.loc    : '';
+  $('e-tag').disabled = !!tag;
+  show('edit-ov');
+  setTimeout(function(){ (tag ? $('e-mfr') : $('e-tag')).focus(); }, 80);
+}
+
+async function saveInstrument(){
+  var tag = ($('e-tag').value||'').toUpperCase().trim();
+  if(!tag){ toast('Το TAG είναι υποχρεωτικό','e'); return; }
+  var d = { tag:tag, serial:$('e-serial').value.trim(), mfr:$('e-mfr').value.trim(), model:$('e-model').value.trim(), loc:$('e-loc').value.trim() };
+  var btn = $('edit-save-btn');
+  btn.disabled=true; btn.textContent='⏳ Αποθήκευση...';
+  try {
+    await apiPost({ action:'saveInstrument', data:d });
+    var ex = instruments.find(function(x){ return x.tag===tag; });
+    if(ex){ Object.assign(ex,d); } else { instruments.push(d); }
+    saveLocal(); render(); hide('edit-ov');
+    toast('✅ Αποθηκεύτηκε: '+tag,'s');
+  } catch(e){
+    toast('❌ Σφάλμα: '+e.message,'e');
+  }
+  btn.disabled=false; btn.textContent='💾 Αποθήκευση';
+}
+
+// ════════════════════════════════════════════════════════════════
+// DELETE
+// ════════════════════════════════════════════════════════════════
+function openDel(tag){
+  delTag = tag;
+  $('del-tag-label').textContent = tag;
+  show('del-ov');
+}
+
+async function doDelete(){
+  if(!delTag) return;
+  try {
+    await apiPost({ action:'deleteInstrument', tag:delTag });
+    instruments = instruments.filter(function(i){ return i.tag!==delTag; });
+    history     = history.filter(function(h){ return h.tag!==delTag; });
+    saveLocal(); render(); hide('del-ov');
+    toast('🗑️ Διαγράφηκε: '+delTag,'i');
+  } catch(e){
+    toast('❌ Σφάλμα: '+e.message,'e');
+  }
+  delTag=null;
+}
+
+// ════════════════════════════════════════════════════════════════
+// HISTORY
+// ════════════════════════════════════════════════════════════════
+function openHist(tag){
+  histTag = tag;
+  $('hist-tag-label').textContent = tag;
+  $('hform').style.display='none';
+  hFormOpen=false;
+  $('h-date').value = today();
+  $('h-type').value = 'cal';
+  $('h-tech').value = '';
+  $('h-notes').value = '';
+  $('h-notes-wrap').style.display='none';
+  renderHistList();
+  show('hist-ov');
+}
+
+function renderHistList(){
+  var iHist = history.filter(function(h){ return h.tag===histTag; })
+    .slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+  var el = $('hist-list');
+  if(!iHist.length){
+    el.innerHTML='<div class="hempty">📭 Δεν υπάρχουν εγγραφές ακόμα</div>'; return;
+  }
+  el.innerHTML = iHist.map(function(h,idx){
+    var t = TYPES[h.type] || { label:h.type, cls:'' };
+    var notesHtml = h.notes ? '<div class="hnotes">'+h.notes+'</div>' : '';
+    var techHtml  = h.tech  ? '<small style="color:var(--t3);display:block;margin-top:2px">'+h.tech+'</small>' : '';
+    return '<div class="hrow">' +
+      '<div class="hdate">'+fmt(h.date)+'</div>' +
+      '<div><span class="htype '+t.cls+'">'+t.label+'</span>'+techHtml+notesHtml+'</div>' +
+      '<button class="btn bd xs" onclick="delHistory(\''+h.tag+'\',\''+h.date+'\',\''+h.type+'\')">✕</button>' +
+    '</div>';
+  }).join('');
+}
+
+function toggleHForm(){
+  hFormOpen=!hFormOpen;
+  $('hform').style.display=hFormOpen?'block':'none';
+  if(hFormOpen) setTimeout(function(){ $('h-date').focus(); },80);
+}
+
+// Show/hide notes field based on type
+$('h-type').addEventListener('change',function(){
+  $('h-notes-wrap').style.display = (this.value==='service'||this.value==='condemned') ? 'block' : 'none';
+});
+
+async function saveHistory(){
+  var date  = $('h-date').value;
+  var type  = $('h-type').value;
+  var tech  = $('h-tech').value.trim();
+  var notes = $('h-notes').value.trim();
+  if(!date){ toast('Η ημερομηνία είναι υποχρεωτική','e'); return; }
+  if((type==='service') && !notes){ toast('Απαιτείται λόγος αποστολής','e'); return; }
+  var h = { tag:histTag, date:date, type:type, tech:tech, notes:notes };
+  try {
+    await apiPost({ action:'addHistory', data:h });
+    history.push(h);
+    saveLocal(); renderHistList(); render();
+    toggleHForm();
+    toast('✅ Εγγραφή προστέθηκε','s');
+  } catch(e){
+    toast('❌ Σφάλμα: '+e.message,'e');
+  }
+}
+
+async function delHistory(tag, date, type){
+  if(!confirm('Διαγραφή εγγραφής;')) return;
+  try {
+    await apiPost({ action:'deleteHistory', tag:tag, date:date, type:type });
+    history = history.filter(function(h){ return !(h.tag===tag && h.date===date && h.type===type); });
+    saveLocal(); renderHistList(); render();
+    toast('🗑️ Εγγραφή διαγράφηκε','i');
+  } catch(e){
+    toast('❌ Σφάλμα: '+e.message,'e');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// QR
+// ════════════════════════════════════════════════════════════════
+function openQR(tag){
+  qrTag = tag;
+  $('qr-title').textContent  = 'QR — ' + tag;
+  $('qr-tag-label').textContent = tag;
+  $('qr-out').innerHTML = '';
+  $('qr-status').textContent = '';
+  var url = NETLIFY + '/?tag=' + encodeURIComponent(tag);
+  try {
+    new QRCode($('qr-out'),{ text:url, width:220, height:220, colorDark:'#000', colorLight:'#fff', correctLevel:QRCode.CorrectLevel.M });
+    $('qr-status').innerHTML='<span style="color:var(--ok)">✅ Μόνιμο QR — δεν αλλάζει ποτέ</span>';
+  } catch(e){
+    $('qr-out').innerHTML='<p style="color:var(--er);font-size:12px;padding:1rem">Σφάλμα QR</p>';
+  }
+  show('qr-ov');
+}
+
+function dlQR(){
+  var c=document.querySelector('#qr-out canvas');
+  if(!c){ toast('Canvas δεν βρέθηκε','e'); return; }
+  var a=document.createElement('a');
+  a.href=c.toDataURL('image/png');
+  a.download='QR_'+(qrTag||'detector')+'.png';
+  a.click();
+  toast('PNG αποθηκεύτηκε ✓','s');
+}
+
+function previewQR(){
+  if(!qrTag) return;
+  window.open(NETLIFY+'/?tag='+encodeURIComponent(qrTag),'_blank');
+}
+
+// ════════════════════════════════════════════════════════════════
+// READ-ONLY VIEW (QR scan)
+// ════════════════════════════════════════════════════════════════
+async function showReadOnly(tag){
+  document.body.innerHTML =
+    '<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@600&display=swap" rel="stylesheet">' +
+    '<div class="ro-loading"><div class="ro-spin"><span class="ro-spin-icon">⚙️</span>Φόρτωση δεδομένων...</div></div>';
+
+  try {
+    var data = await apiGet({ action:'getTag', tag:tag });
+    var inst = data.instrument;
+    var hist = data.history || [];
+
+    var badgeColors = {
+      cal:      { bg:'#fdf8ed', color:'#8a6200', border:'#f0d88a' },
+      filter:   { bg:'#eef4fd', color:'#1a5fa8', border:'#b8d4f5' },
+      nozzle:   { bg:'#f3eeff', color:'#5a3a8a', border:'#d4b8f5' },
+      o2:       { bg:'#edf7f1', color:'#2d7a4a', border:'#b8e6c8' },
+      coh2s:    { bg:'#edf7f1', color:'#1a7a3a', border:'#b8e6c8' },
+      comb:     { bg:'#fff3ee', color:'#c84b00', border:'#fdd0b8' },
+      service:  { bg:'#fdf8ed', color:'#8a6200', border:'#f0d88a' },
+      condemned:{ bg:'#fdf0ef', color:'#c0392b', border:'#f5c6c2' }
+    };
+
+    var histHtml = hist.length ? hist.map(function(h){
+      var t  = TYPES[h.type] || { label:h.type };
+      var bc = badgeColors[h.type] || { bg:'#f5f7fa', color:'#4a5568', border:'#e2e6eb' };
+      var notesHtml = h.notes ? '<div class="ro-hnotes">'+h.notes+'</div>' : '';
+      return '<div class="ro-hrow">' +
+        '<div class="ro-hdate">'+fmtRO(h.date)+'</div>' +
+        '<div><span class="ro-hbadge" style="background:'+bc.bg+';color:'+bc.color+';border:1px solid '+bc.border+'">'+t.label+'</span>'+notesHtml+'</div>' +
+      '</div>';
+    }).join('') : '<div style="text-align:center;padding:1.5rem;color:#9aa3b0;font-size:12px">Δεν υπάρχουν εγγραφές</div>';
+
+    var model = [inst.mfr, inst.model].filter(Boolean).join(' ') || '—';
+
+    document.body.innerHTML =
+      '<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@600&display=swap" rel="stylesheet">' +
+      '<style>*{box-sizing:border-box;margin:0;padding:0}.ro-page{background:#f0f2f5;min-height:100vh;padding:1rem;font-family:"IBM Plex Sans",sans-serif}.ro-card{background:#fff;border:1px solid #e2e6eb;border-radius:12px;padding:1.5rem;max-width:420px;margin:0 auto;box-shadow:0 2px 8px rgba(0,0,0,.08)}.ro-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem}.ro-badge{background:#c84b00;color:#fff;font-weight:700;font-size:10px;padding:4px 10px;border-radius:4px;letter-spacing:1.5px;font-family:"IBM Plex Mono",monospace}.ro-readonly{background:#eef4fd;color:#1a5fa8;border:1px solid #b8d4f5;font-size:9px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:.5px}.ro-tag{font-size:22px;font-weight:700;color:#c84b00;font-family:"IBM Plex Mono",monospace;word-break:break-all;margin-bottom:3px;line-height:1.2}.ro-model{font-size:13px;color:#4a5568;margin-bottom:1rem;word-break:break-word}.ro-fields{display:grid;grid-template-columns:80px 1fr;gap:5px 10px;margin-bottom:1rem;font-size:13px}.ro-lbl{color:#9aa3b0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding-top:2px}.ro-val{color:#1a1f2e;font-weight:500;word-break:break-word}.ro-sep{border:none;border-top:1px solid #e2e6eb;margin:1rem 0}.ro-htitle{font-size:10px;font-weight:700;color:#9aa3b0;text-transform:uppercase;letter-spacing:.9px;margin-bottom:.75rem}.ro-hrow{display:grid;grid-template-columns:80px 1fr;gap:4px 10px;padding:9px 0;border-bottom:1px solid #f0f2f5}.ro-hrow:last-child{border-bottom:none}.ro-hdate{color:#4a5568;font-weight:600;font-family:monospace;font-size:11px;padding-top:4px}.ro-hbadge{display:inline-block;padding:3px 9px;border-radius:4px;font-size:11px;font-weight:700;word-break:break-word;line-height:1.4}.ro-hnotes{font-size:11px;color:#9aa3b0;font-style:italic;margin-top:3px}.ro-foot{text-align:center;font-size:10px;color:#9aa3b0;margin-top:1.25rem;padding-top:1rem;border-top:1px solid #e2e6eb;line-height:1.8}</style>' +
+      '<div class="ro-page"><div class="ro-card">' +
+        '<div class="ro-top"><span class="ro-badge">DETECTOR PASSPORT · MOTOR OIL</span><span class="ro-readonly">READ ONLY</span></div>' +
+        '<div class="ro-tag">'+inst.tag+'</div>' +
+        '<div class="ro-model">'+model+'</div>' +
+        '<div class="ro-fields">' +
+          (inst.serial ? '<span class="ro-lbl">Serial</span><span class="ro-val">'+inst.serial+'</span>' : '') +
+          (inst.loc    ? '<span class="ro-lbl">Location</span><span class="ro-val">'+inst.loc+'</span>' : '') +
+        '</div>' +
+        '<hr class="ro-sep">' +
+        '<div class="ro-htitle">Maintenance History ('+hist.length+' records)</div>' +
+        histHtml +
+        '<div class="ro-foot">Detector Passport &middot; Motor Oil Refineries &middot; Instrumentation<br>&#128274; Read-only — contact Instrumentation for changes</div>' +
+      '</div></div>';
+
+  } catch(e){
+    document.body.innerHTML =
+      '<div style="background:#f0f2f5;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui">' +
+      '<div style="text-align:center;color:#c0392b;padding:2rem"><div style="font-size:48px;margin-bottom:1rem">⚠️</div>' +
+      '<div style="font-size:15px;font-weight:700">Σφάλμα φόρτωσης</div>' +
+      '<div style="font-size:12px;color:#9aa3b0;margin-top:.5rem">'+e.message+'</div></div></div>';
+  }
+}
+
+function fmtRO(d){ if(!d) return '—'; var p=d.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:d; }
+
+// ════════════════════════════════════════════════════════════════
+// EXCEL IMPORT
+// ════════════════════════════════════════════════════════════════
+function importXL(){
+  requirePin(function(){ $('xl-in').click(); });
+}
+
+function gc(row){
+  var keys=[].slice.call(arguments,1);
+  for(var i=0;i<keys.length;i++){ if(row[keys[i]]!==undefined && row[keys[i]]!=='') return row[keys[i]]; }
+  return '';
+}
+
+function parseXDate(v){
+  if(!v) return '';
+  if(v instanceof Date){ var d=v; return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  var s=String(v).trim();
+  var m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(m) return m[3]+'-'+m[2]+'-'+m[1];
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return '';
+}
+
+async function doImport(inp){
+  var f=inp.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=async function(e){
+    try{
+      var wb=XLSX.read(e.target.result,{type:'binary',cellDates:true});
+      var rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
+      var toSave=[]; var added=0,updated=0;
+      rows.forEach(function(row){
+        var tag=gc(row,'TAG','tag','Tag'); if(!tag) return;
+        var tagC=String(tag).toUpperCase().trim();
+        var d={ tag:tagC, serial:String(gc(row,'Serial','serial','S/N')||'').trim(),
+          mfr:String(gc(row,'Manufacturer','mfr','Κατασκευαστής')||'').trim(),
+          model:String(gc(row,'Model','model','Μοντέλο')||'').trim(),
+          loc:String(gc(row,'Location','loc','Τοποθεσία','Area')||'').trim() };
+        var ex=instruments.find(function(x){ return x.tag===tagC; });
+        if(ex){ if(d.serial)ex.serial=d.serial; if(d.mfr)ex.mfr=d.mfr; if(d.model)ex.model=d.model; if(d.loc)ex.loc=d.loc; updated++; }
+        else{ instruments.push(d); added++; }
+        toSave.push(d);
+      });
+      var histToSave=[];
+      if(wb.SheetNames.length>1){
+        var hrows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[1]],{defval:'',cellDates:true});
+        hrows.forEach(function(row){
+          var tag=gc(row,'TAG','tag','Tag'); if(!tag) return;
+          var tagC=String(tag).toUpperCase().trim();
+          var inst=instruments.find(function(x){ return x.tag===tagC; }); if(!inst) return;
+          var dateStr=parseXDate(gc(row,'Date','date','Ημερομηνία','Ημ/νία')); if(!dateStr) return;
+          var typeRaw=String(gc(row,'Type','type','Τύπος')||'cal').toLowerCase().replace(/\s/g,'');
+          var typeMap={cal:'cal',calibration:'cal',filter:'filter','αλλαγήφίλτρων':'filter',
+            nozzle:'nozzle',o2:'o2',coh2s:'coh2s',comb:'comb',service:'service',condemned:'condemned'};
+          var type=typeMap[typeRaw]||'cal';
+          var tech=String(gc(row,'Technician','tech','Τεχνικός')||'').trim();
+          var notes=String(gc(row,'Notes','notes','Λόγος')||'').trim();
+          if(!history.some(function(h){ return h.tag===tagC&&h.date===dateStr&&h.type===type; })){
+            var h={tag:tagC,date:dateStr,type:type,tech:tech,notes:notes};
+            history.push(h); histToSave.push(h);
+          }
+        });
+      }
+      // Send to API
+      await apiPost({ action:'bulkImport', instruments:toSave, history:histToSave });
+      saveLocal(); render();
+      toast('✅ Import: +'+added+' νέα, '+updated+' ενημερώθηκαν','s');
+    } catch(err){ toast('❌ Import error: '+err.message,'e'); }
+  };
+  r.readAsBinaryString(f);
+  inp.value='';
+}
+
+// ════════════════════════════════════════════════════════════════
+// EXCEL EXPORT
+// ════════════════════════════════════════════════════════════════
+function exportXL(){
+  if(!instruments.length){ toast('Δεν υπάρχουν δεδομένα','i'); return; }
+  var wb=XLSX.utils.book_new();
+  var rows=instruments.map(function(i){
+    return { TAG:i.tag, Serial:i.serial||'', Manufacturer:i.mfr||'', Model:i.model||'', Location:i.loc||'', Records:(history.filter(function(h){return h.tag===i.tag;})).length };
+  });
+  var ws1=XLSX.utils.json_to_sheet(rows);
+  ws1['!cols']=[{wch:15},{wch:15},{wch:18},{wch:18},{wch:20},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Instruments');
+  var hrows=[];
+  instruments.forEach(function(i){
+    history.filter(function(h){return h.tag===i.tag;}).sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(h){
+      hrows.push({ TAG:i.tag, Date:fmt(h.date), Type:(TYPES[h.type]||{label:h.type}).label, Technician:h.tech||'', Notes:h.notes||'' });
+    });
+  });
+  if(hrows.length){ var ws2=XLSX.utils.json_to_sheet(hrows); ws2['!cols']=[{wch:15},{wch:12},{wch:25},{wch:18},{wch:30}]; XLSX.utils.book_append_sheet(wb,ws2,'History'); }
+  XLSX.writeFile(wb,'DetectorPassport_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('✅ Excel αποθηκεύτηκε','s');
+}
+
+// ════════════════════════════════════════════════════════════════
+// PDF EXPORT
+// ════════════════════════════════════════════════════════════════
+function pdfS(s){ // Greek to latin for jsPDF
+  if(!s) return '';
+  return String(s).replace(/[Αα]/g,'A').replace(/[Ββ]/g,'V').replace(/[Γγ]/g,'G').replace(/[Δδ]/g,'D')
+    .replace(/[Εε]/g,'E').replace(/[Ζζ]/g,'Z').replace(/[Ηη]/g,'I').replace(/[Θθ]/g,'Th')
+    .replace(/[Ιι]/g,'I').replace(/[Κκ]/g,'K').replace(/[Λλ]/g,'L').replace(/[Μμ]/g,'M')
+    .replace(/[Νν]/g,'N').replace(/[Ξξ]/g,'X').replace(/[Οο]/g,'O').replace(/[Ππ]/g,'P')
+    .replace(/[Ρρ]/g,'R').replace(/[Σσς]/g,'S').replace(/[Ττ]/g,'T').replace(/[Υυ]/g,'Y')
+    .replace(/[Φφ]/g,'F').replace(/[Χχ]/g,'Ch').replace(/[Ψψ]/g,'Ps').replace(/[Ωω]/g,'O')
+    .replace(/[ΆάΈέΉήΊίΌόΎύΏώ]/g,function(c){return{Ά:'A',ά:'a',Έ:'E',έ:'e',Ή:'I',ή:'i',Ί:'I',ί:'i',Ό:'O',ό:'o',Ύ:'Y',ύ:'y',Ώ:'O',ώ:'o'}[c]||c;})
+    .replace(/[₂]/g,'2').replace(/[₃]/g,'3');
+}
+
+const TYPE_EN={ cal:'Calibration', filter:'Filter change', nozzle:'Nozzle change', o2:'O2 change', coh2s:'CO/H2S change', comb:'Comb change', service:'Sent to service', condemned:'Condemned' };
+
+function exportPDF(){
+  if(!instruments.length){ toast('Δεν υπάρχουν δεδομένα','i'); return; }
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  doc.setFontSize(14); doc.setFont('helvetica','bold');
+  doc.text('Detector Passport — Motor Oil Refineries',14,14);
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(120);
+  doc.text(new Date().toLocaleDateString('el-GR')+' | '+instruments.length+' instruments',14,20);
+  doc.setTextColor(0);
+  doc.autoTable({
+    startY:24,
+    head:[['TAG','Manufacturer','Model','Serial','Location','Records']],
+    body:instruments.map(function(i){
+      return[pdfS(i.tag),pdfS(i.mfr),pdfS(i.model),pdfS(i.serial),pdfS(i.loc),
+        history.filter(function(h){return h.tag===i.tag;}).length];
+    }),
+    styles:{fontSize:9,cellPadding:3},
+    headStyles:{fillColor:[200,75,0],textColor:255,fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[248,248,248]},
+    columnStyles:{0:{fontStyle:'bold',textColor:[180,60,0]}}
+  });
+  var hrows=[];
+  instruments.forEach(function(i){
+    history.filter(function(h){return h.tag===i.tag;}).sort(function(a,b){return b.date.localeCompare(a.date);}).forEach(function(h){
+      hrows.push([pdfS(i.tag),fmt(h.date),TYPE_EN[h.type]||pdfS(h.type),pdfS(h.tech),pdfS(h.notes)]);
+    });
+  });
+  if(hrows.length){
+    doc.addPage();
+    doc.setFontSize(12); doc.setFont('helvetica','bold'); doc.text('Maintenance History',14,14);
+    doc.autoTable({
+      startY:20,
+      head:[['TAG','Date','Type','Technician','Notes']],
+      body:hrows,
+      styles:{fontSize:8,cellPadding:3},
+      headStyles:{fillColor:[26,31,46],textColor:255},
+      columnStyles:{0:{fontStyle:'bold',textColor:[180,60,0]},4:{cellWidth:60}}
+    });
+  }
+  doc.save('DetectorPassport_'+new Date().toISOString().slice(0,10)+'.pdf');
+  toast('✅ PDF αποθηκεύτηκε','s');
+}
+
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
+(function(){
+  var params=new URLSearchParams(window.location.search);
+  var tag=params.get('tag');
+  if(tag){ showReadOnly(tag); return; }
+  // Normal app
+  loadLocal();
+  render();
+  syncNow();
+})();
+</script>
+</body>
+</html>
